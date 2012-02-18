@@ -1,5 +1,6 @@
 #include <dirent.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -54,12 +55,10 @@ int env_load_from_dir(char *dir) {
 }
 
 int main(int argc, char **argv) {
-	char home_dir[256];
-	char env_dir[256];
-	char seed_file[256];
-	int ret;
+	char home_dir[256], env_dir[256], seed_file[256];
+	int i;
 
-	strcpy( home_dir, "/etc/dnscache");
+	strcpy(home_dir, "/etc/dnscache");
 	if (argc > 1)
 		strncpy( home_dir, argv[1], strlen(home_dir) );
 
@@ -77,24 +76,33 @@ int main(int argc, char **argv) {
 		{"ROOT",          "/etc/dnscache/root"},
 		{"CACHESIZE",     "1000000"},
 		{"HIDETTL",       ""},
-		{"DNS_CACHE_BIN", "/usr/local/bin/dnscache"},
+		{"DNS_CACHE_BIN", "/usr/local/sbin/dnscache"},
 		{NULL,            NULL},
 	};
 
-	int i;
 	for ( i = 0; defaults[i][0] != NULL; i++) {
 		setenv( (const char *)defaults[i][0], (const char *)defaults[i][1], 1);
 	}
 	env_load_from_dir(env_dir);
 	chdir(home_dir);
 
-	ret = open(seed_file, O_RDONLY);
-	if (ret < 0)
-		fprintf(stderr, "failed to open seed_file: %s\n", seed_file);
+	signal(SIGCHLD,SIG_IGN); /* ignore child */
+	signal(SIGTSTP,SIG_IGN); /* ignore tty signals */
+	signal(SIGTTOU,SIG_IGN);
+	signal(SIGTTIN,SIG_IGN);
 
-	ret = dup2(ret, 0);
-	if (ret != 0)
-		fprintf(stderr, "failed to dup2 open seed_file: %s\n", seed_file);
+	if ( fork() ) return 1;
+	if ( fork() ) return 1;
+	setsid();
+
+	for ( i = getdtablesize(); i >= 0; --i )
+		close(i);
+	if ( open(seed_file, O_RDONLY) < 0 )
+		return fprintf(stderr, "failed to open seed_file: %s\n", seed_file), 1;
+
+	if ( open("/dev/null", O_WRONLY) < 0 )
+		return fprintf(stderr, "failed to open /dev/null \n"), 1;
+	dup(1);
 
 	return execl( getenv("DNS_CACHE_BIN"), getenv("DNS_CACHE_BIN"), (char *)NULL );
 }
