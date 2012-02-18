@@ -1,0 +1,17 @@
+What is dns_cached?
+
+It replaces daemontools so you can run djbdns' dnscache without installing daemontools
+
+
+Why would you do that?
+
+I wanted a lightweight dns resolver for my laptop so that I wasn't at the mercy
+of some dhcp-assigned DNS server.
+
+djbdns http://cr.yp.to/djbdns.html seemed to be the solution, however DJB
+intended it to run under daemontools, and I didn't want that on my laptop.
+
+
+What about IPv6? 
+
+Add the IPv6 patch from http://www.fefe.de/dns/
